@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, FlaskConical, QrCode, Plus, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useBlockchain } from '../contexts/BlockchainContext';
 
 const ProcessorDashboard = () => {
   const [processingData, setProcessingData] = useState({
@@ -37,6 +38,7 @@ const ProcessorDashboard = () => {
   });
 
   const { toast } = useToast();
+  const { contract, account } = useBlockchain();
 
   const processingSteps = [
     'Initial Cleaning',
@@ -101,18 +103,37 @@ const ProcessorDashboard = () => {
     }
 
     try {
-      const processingEvent = {
-        ...processingData,
-        timestamp: new Date().toISOString(),
-        eventType: 'PROCESSING',
-        blockchainHash: `0x${Math.random().toString(16).slice(2, 42)}`
-      };
+      if (!contract || !account) {
+        toast({
+          title: "Error",
+          description: "Please connect your wallet first",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      console.log('Processing Event:', processingEvent);
+      const metaCID = JSON.stringify({
+        processorId: processingData.processorId,
+        batchId: processingData.batchId,
+        notes: processingData.notes,
+        temperature: processingData.temperature,
+        duration: processingData.duration,
+        timestamp: Date.now()
+      });
+
+      // Add processing event to blockchain
+      await contract.methods.addEvent(
+        processingData.herbId, // batchId
+        `PROC-${Date.now()}`, // eventId
+        processingData.processStep, // eventType
+        metaCID, // metaCID
+        0, // lat (can be updated with facility location)
+        0  // lon (can be updated with facility location)
+      ).send({ from: account });
 
       toast({
         title: "Success",
-        description: "Processing step recorded successfully on blockchain",
+        description: "Processing step recorded on blockchain",
       });
 
       setProcessingData({
@@ -144,18 +165,46 @@ const ProcessorDashboard = () => {
     }
 
     try {
-      const qualityEvent = {
-        ...qualityData,
-        timestamp: new Date().toISOString(),
-        eventType: 'QUALITY_TEST',
-        blockchainHash: `0x${Math.random().toString(16).slice(2, 42)}`
-      };
+      if (!contract || !account) {
+        toast({
+          title: "Error",
+          description: "Please connect your wallet first",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      console.log('Quality Test Event:', qualityEvent);
+      const metaCID = JSON.stringify({
+        laboratory: qualityData.laboratory,
+        certificateId: qualityData.certificateId,
+        result: qualityData.result,
+        status: qualityData.status,
+        timestamp: Date.now()
+      });
+
+      // Parse numeric value if moisture test
+      let numericValue = 0;
+      if (qualityData.testType.toLowerCase().includes('moisture')) {
+        const moistureMatch = qualityData.result.match(/(\d+\.?\d*)/);
+        if (moistureMatch) {
+          numericValue = Math.round(parseFloat(moistureMatch[1]) * 100); // Scale by 100
+        }
+      }
+
+      // Add quality test to blockchain
+      await contract.methods.addQualityTest(
+        qualityData.herbId, // batchId
+        `LAB-${Date.now()}`, // eventId
+        qualityData.testType, // testType
+        numericValue, // numericValue (scaled)
+        metaCID, // metaCID
+        0, // lat (can be updated with lab location)
+        0  // lon (can be updated with lab location)
+      ).send({ from: account });
 
       toast({
         title: "Success",
-        description: "Quality test recorded successfully on blockchain",
+        description: "Quality test recorded on blockchain",
       });
 
       setQualityData({

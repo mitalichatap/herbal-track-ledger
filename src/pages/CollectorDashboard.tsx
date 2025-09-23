@@ -122,13 +122,28 @@ const CollectorDashboard = () => {
       const timestamp = Math.floor(Date.now() / 1000);
       const locationString = `${location.latitude.toFixed(6)},${location.longitude.toFixed(6)}`;
       
-      // Record harvest event on blockchain
-      await contract.methods.recordHarvestEvent(
-        herbId,
-        locationString,
-        timestamp,
-        harvestData.collectorId,
-        harvestData.species
+      // Scale coordinates by 1e6 for Solidity contract
+      const lat = Math.round(location.latitude * 1e6);
+      const lon = Math.round(location.longitude * 1e6);
+      
+      // Create batch with initial collection event
+      const eventId = `COL-${herbId}`;
+      const metaCID = JSON.stringify({
+        collectorId: harvestData.collectorId,
+        quantity: harvestData.quantity,
+        qualityNotes: harvestData.qualityNotes,
+        weatherConditions: harvestData.weatherConditions,
+        soilType: harvestData.soilType,
+        timestamp: Date.now()
+      });
+
+      await contract.methods.createBatch(
+        herbId, // batchId
+        harvestData.species, // species
+        eventId, // eventId
+        metaCID, // metaCID
+        lat, // lat (scaled)
+        lon // lon (scaled)
       ).send({ from: account });
 
       // Create harvest event object

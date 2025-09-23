@@ -142,27 +142,110 @@ const ConsumerPortal = () => {
     
     setLoading(true);
     try {
-      // Simulate API call delay
-      setTimeout(() => {
-        if (herbId.toUpperCase().startsWith('ASH') || herbId === 'demo') {
-          setProvenanceData({
-            ...mockProvenanceData,
-            herbId: herbId.toUpperCase()
-          });
+      if (contract) {
+        try {
+          // Get batch summary from blockchain
+          const summary = await contract.methods.getBatchSummary(herbId).call();
+          const [species, creator, rootHash, createdAt, recalled, eventsCount] = summary;
+          
+          // Get all events
+          const events = [];
+          for (let i = 0; i < eventsCount; i++) {
+            const eventData = await contract.methods.getEvent(herbId, i).call();
+            const [eventId, eventType, actor, metaCID, lat, lon, timestamp, qualityPass] = eventData;
+            
+            events.push({
+              eventId,
+              eventType,
+              actor,
+              metaCID,
+              lat: lat / 1e6, // Convert back from scaled coordinates
+              lon: lon / 1e6,
+              timestamp: new Date(timestamp * 1000).toISOString(),
+              qualityPass
+            });
+          }
+
+          // Transform blockchain data to UI format
+          const blockchainData: ProvenanceData = {
+            herbId,
+            species,
+            harvestLocation: events[0] ? `${events[0].lat.toFixed(6)}°, ${events[0].lon.toFixed(6)}°` : 'Unknown',
+            harvestDate: events[0] ? events[0].timestamp.split('T')[0] : 'Unknown',
+            collectorId: creator.slice(0, 6) + '...' + creator.slice(-4),
+            processingSteps: events.filter(e => e.eventType !== 'Collection' && !e.eventType.includes('moisture')).map(e => ({
+              step: e.eventType,
+              date: e.timestamp.split('T')[0],
+              processor: e.actor.slice(0, 6) + '...' + e.actor.slice(-4),
+              location: `${e.lat.toFixed(6)}°, ${e.lon.toFixed(6)}°`,
+              status: 'completed' as const
+            })),
+            qualityTests: events.filter(e => e.eventType.includes('moisture') || e.eventType.toLowerCase().includes('test')).map(e => ({
+              testType: e.eventType,
+              result: e.qualityPass ? 'Passed - Within acceptable limits' : 'Failed - Outside acceptable limits',
+              status: e.qualityPass ? 'passed' as const : 'failed' as const,
+              date: e.timestamp.split('T')[0],
+              laboratory: e.actor.slice(0, 6) + '...' + e.actor.slice(-4),
+              certificate: e.eventId
+            })),
+            sustainabilityScore: recalled ? 0 : 95,
+            certifications: recalled ? [] : ['Blockchain Verified', 'Traceability Certified'],
+            authenticityVerified: !recalled
+          };
+
+          setProvenanceData(blockchainData);
           toast({
             title: "Product Verified",
-            description: "Complete traceability data retrieved successfully",
+            description: "Blockchain data retrieved successfully",
           });
-        } else {
-          setProvenanceData(null);
-          toast({
-            title: "Product Not Found",
-            description: "No traceability data found for this product ID",
-            variant: "destructive"
-          });
+          setLoading(false);
+        } catch (blockchainError) {
+          console.log('Blockchain query failed, using mock data');
+          // Fallback to mock data for development
+          setTimeout(() => {
+            if (herbId.toUpperCase().startsWith('ASH') || herbId === 'demo') {
+              setProvenanceData({
+                ...mockProvenanceData,
+                herbId: herbId.toUpperCase()
+              });
+              toast({
+                title: "Product Verified",
+                description: "Complete traceability data retrieved successfully",
+              });
+            } else {
+              setProvenanceData(null);
+              toast({
+                title: "Product Not Found",
+                description: "No traceability data found for this product ID",
+                variant: "destructive"
+              });
+            }
+            setLoading(false);
+          }, 1500);
         }
-        setLoading(false);
-      }, 1500);
+      } else {
+        // Fallback to mock data when no contract
+        setTimeout(() => {
+          if (herbId.toUpperCase().startsWith('ASH') || herbId === 'demo') {
+            setProvenanceData({
+              ...mockProvenanceData,
+              herbId: herbId.toUpperCase()
+            });
+            toast({
+              title: "Product Verified",
+              description: "Complete traceability data retrieved successfully",
+            });
+          } else {
+            setProvenanceData(null);
+            toast({
+              title: "Product Not Found",
+              description: "No traceability data found for this product ID",
+              variant: "destructive"
+            });
+          }
+          setLoading(false);
+        }, 1500);
+      }
     } catch (error) {
       console.error('Error fetching provenance:', error);
       setLoading(false);
