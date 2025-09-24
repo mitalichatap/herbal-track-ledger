@@ -30,7 +30,7 @@ const Navbar = () => {
             <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
               <Leaf className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-primary">AYUTRACE</span>
+            <span className="text-xl font-bold text-primary">AYURCHAIN</span>
           </Link>
 
           {/* Desktop Navigation */}

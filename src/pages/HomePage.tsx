@@ -19,7 +19,7 @@ const HomePage = () => {
         <div className="relative container mx-auto px-4 text-center">
           <div className="max-w-4xl mx-auto text-white">
             <h1 className="text-6xl font-bold mb-6">
-              AYUTRACE
+              AYURCHAIN
             </h1>
             <p className="text-xl mb-8 opacity-90">
               Blockchain-powered traceability for Ayurvedic herbal supply chains

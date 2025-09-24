@@ -239,7 +239,7 @@ const ProcessorDashboard = () => {
         herbId: qrData.herbId,
         productName: qrData.productName,
         expiryDate: qrData.expiryDate,
-        verificationUrl: `https://ayutrace.com/verify/${qrData.herbId}`,
+        verificationUrl: `https://ayurchain.com/verify/${qrData.herbId}`,
         generatedAt: new Date().toISOString()
       };
 
